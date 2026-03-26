@@ -5,17 +5,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Nav } from "@/components/nav";
 import { KpiCard } from "@/components/kpi-card";
-import {
-  AssetPerformanceChart,
-  CostBasisChart,
-  AvgRentChart,
-  RevenueTrendChart,
-} from "@/components/charts";
+import { AssetPerformanceChart, CostBasisChart } from "@/components/charts";
+import { FinancialStatements } from "@/components/financial-statements";
 import {
   getAsset,
   formatCurrency,
   formatPercent,
-  formatFullCurrency,
 } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import {
@@ -163,183 +158,10 @@ export default function AssetDetailPage({
           />
         </div>
 
-        {/* Asset-Type-Specific Sections */}
-        {asset.type === "office" && asset.leases && (
-          <div className="space-y-6 mb-8">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-muted-foreground" />
-              Lease Schedule
-            </h2>
-            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs font-medium text-muted-foreground">
-                      <th className="px-5 py-3">Tenant</th>
-                      <th className="px-5 py-3">Lease Start</th>
-                      <th className="px-5 py-3">Lease End</th>
-                      <th className="px-5 py-3 text-right">Rent ($/SF)</th>
-                      <th className="px-5 py-3">Escalations</th>
-                      <th className="px-5 py-3 text-right">TI/LC Costs</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {asset.leases.map((lease) => (
-                      <tr
-                        key={lease.tenant}
-                        className="border-b last:border-0"
-                      >
-                        <td className="px-5 py-3 font-medium">
-                          {lease.tenant}
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground">
-                          {new Date(lease.leaseStart).toLocaleDateString(
-                            "en-US",
-                            { month: "short", year: "numeric" }
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground">
-                          {new Date(lease.leaseEnd).toLocaleDateString(
-                            "en-US",
-                            { month: "short", year: "numeric" }
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-right font-medium">
-                          ${lease.rent}
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground">
-                          {lease.escalation}
-                        </td>
-                        <td className="px-5 py-3 text-right">
-                          {formatCurrency(lease.tiLcCosts)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {asset.camSummary && (
-              <div className="rounded-xl border bg-card p-5 shadow-sm">
-                <h3 className="mb-4 text-sm font-semibold">
-                  CAM (Common Area Maintenance)
-                </h3>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  {asset.camSummary.map((item) => (
-                    <div key={item.category} className="text-center">
-                      <p className="text-xs text-muted-foreground">
-                        {item.category}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold">
-                        {formatCurrency(item.amount)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {asset.type === "multifamily" && asset.rentRoll && (
-          <div className="space-y-6 mb-8">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Home className="h-5 w-5 text-muted-foreground" />
-              Rent Roll
-            </h2>
-
-            <div className="grid gap-4 sm:grid-cols-2 mb-4">
-              <KpiCard
-                label="Occupancy"
-                value={formatPercent(asset.occupancy)}
-                trend={1.2}
-              />
-              <KpiCard
-                label="Units"
-                value={`${asset.rentRoll.length}`}
-              />
-            </div>
-
-            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-left text-xs font-medium text-muted-foreground">
-                      <th className="px-5 py-3">Unit #</th>
-                      <th className="px-5 py-3 text-right">Rent</th>
-                      <th className="px-5 py-3">Lease Status</th>
-                      <th className="px-5 py-3">Tenant</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {asset.rentRoll.map((unit) => (
-                      <tr
-                        key={unit.unit}
-                        className="border-b last:border-0"
-                      >
-                        <td className="px-5 py-3 font-medium">{unit.unit}</td>
-                        <td className="px-5 py-3 text-right font-medium">
-                          ${unit.rent.toLocaleString()}
-                        </td>
-                        <td className="px-5 py-3">
-                          <span
-                            className={cn(
-                              "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-                              unit.leaseStatus === "Occupied"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : unit.leaseStatus === "Notice"
-                                ? "bg-amber-50 text-amber-700"
-                                : "bg-red-50 text-red-700"
-                            )}
-                          >
-                            {unit.leaseStatus}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground">
-                          {unit.tenant}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {asset.avgRentTrend && <AvgRentChart data={asset.avgRentTrend} />}
-          </div>
-        )}
-
-        {asset.type === "hospitality" && asset.hospitalityMetrics && (
-          <div className="space-y-6 mb-8">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Hotel className="h-5 w-5 text-muted-foreground" />
-              Hospitality Metrics
-            </h2>
-
-            <div className="grid gap-4 sm:grid-cols-3">
-              <KpiCard
-                label="ADR (Avg Daily Rate)"
-                value={`$${asset.hospitalityMetrics.adr}`}
-                trend={3.8}
-              />
-              <KpiCard
-                label="RevPAR"
-                value={`$${asset.hospitalityMetrics.revpar}`}
-                trend={5.2}
-              />
-              <KpiCard
-                label="Occupancy"
-                value={formatPercent(asset.hospitalityMetrics.occupancy)}
-                trend={2.1}
-              />
-            </div>
-
-            <RevenueTrendChart
-              data={asset.hospitalityMetrics.revenueTrend}
-            />
-          </div>
-        )}
+        {/* Financial Statements */}
+        <div className="mb-8">
+          <FinancialStatements asset={asset} />
+        </div>
       </main>
     </>
   );

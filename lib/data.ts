@@ -31,6 +31,45 @@ export interface HospitalityMetrics {
   revenueTrend: { month: string; revenue: number }[];
 }
 
+export interface IncomeStatementEntry {
+  period: string;
+  baseRentalIncome: number;
+  tenantReimbursements: number;
+  parkingIncome: number;
+  otherIncome: number;
+  vacancyLoss: number;
+  effectiveGrossIncome: number;
+  propertyManagement: number;
+  insurance: number;
+  utilities: number;
+  repairsAndMaintenance: number;
+  propertyTaxes: number;
+  generalAndAdmin: number;
+  totalOperatingExpenses: number;
+  netOperatingIncome: number;
+  debtService: number;
+  capitalReserves: number;
+  netIncome: number;
+}
+
+export interface CashFlowStatementEntry {
+  period: string;
+  netOperatingIncome: number;
+  adjustmentsNonCash: number;
+  changesInWorkingCapital: number;
+  netCashFromOperations: number;
+  capitalExpenditures: number;
+  tenantImprovements: number;
+  leasingCommissions: number;
+  netCashFromInvesting: number;
+  mortgagePrincipalPayment: number;
+  distributions: number;
+  netCashFromFinancing: number;
+  netCashFlow: number;
+  beginningCashBalance: number;
+  endingCashBalance: number;
+}
+
 export interface Asset {
   id: string;
   name: string;
@@ -60,6 +99,9 @@ export interface Asset {
   avgRentTrend?: { month: string; avgRent: number }[];
   // Hospitality-specific
   hospitalityMetrics?: HospitalityMetrics;
+  // Financial statements (all asset types)
+  incomeStatement: IncomeStatementEntry[];
+  cashFlowStatement: CashFlowStatementEntry[];
 }
 
 export interface Portfolio {
@@ -90,6 +132,109 @@ function generateTimeline(years: number, baseValue: number, baseNoi: number, bas
   return entries;
 }
 
+function generateIncomeStatement(annualNoi: number, purchasePrice: number, occupancy: number): IncomeStatementEntry[] {
+  const entries: IncomeStatementEntry[] = [];
+  const quarterlyNoi = annualNoi / 4;
+  const opexRatio = 0.42; // opex as % of EGI
+  const quarterlyEgi = quarterlyNoi / (1 - opexRatio);
+
+  for (let y = 2023; y <= 2024; y++) {
+    for (let q = 1; q <= 4; q++) {
+      const idx = (y - 2023) * 4 + q;
+      const growth = 1 + idx * 0.006;
+      const egi = Math.round(quarterlyEgi * growth);
+      const baseRental = Math.round(egi * 0.84);
+      const reimbursements = Math.round(egi * 0.10);
+      const parking = Math.round(egi * 0.03);
+      const other = Math.round(egi * 0.03);
+      const vacancyLoss = -Math.round(baseRental * (1 - occupancy) * (1 + Math.sin(idx) * 0.15));
+
+      const propMgmt = Math.round(egi * 0.05 * growth);
+      const insurance = Math.round(egi * 0.025 * growth);
+      const utilities = Math.round(egi * 0.06 * growth);
+      const repairs = Math.round(egi * 0.045 * growth);
+      const propTax = Math.round(egi * 0.10 * growth);
+      const gna = Math.round(egi * 0.015 * growth);
+      const totalOpex = propMgmt + insurance + utilities + repairs + propTax + gna;
+
+      const noi = baseRental + reimbursements + parking + other + vacancyLoss - totalOpex;
+      const debtService = Math.round(purchasePrice * 0.6 * 0.066 / 4);
+      const capReserves = Math.round(egi * 0.025);
+      const netIncome = noi - debtService - capReserves;
+
+      entries.push({
+        period: `Q${q} ${y}`,
+        baseRentalIncome: baseRental,
+        tenantReimbursements: reimbursements,
+        parkingIncome: parking,
+        otherIncome: other,
+        vacancyLoss,
+        effectiveGrossIncome: baseRental + reimbursements + parking + other + vacancyLoss,
+        propertyManagement: propMgmt,
+        insurance,
+        utilities,
+        repairsAndMaintenance: repairs,
+        propertyTaxes: propTax,
+        generalAndAdmin: gna,
+        totalOperatingExpenses: totalOpex,
+        netOperatingIncome: noi,
+        debtService,
+        capitalReserves: capReserves,
+        netIncome,
+      });
+    }
+  }
+  return entries;
+}
+
+function generateCashFlowStatement(annualNoi: number, purchasePrice: number): CashFlowStatementEntry[] {
+  const entries: CashFlowStatementEntry[] = [];
+  let cashBalance = Math.round(purchasePrice * 0.02); // starting cash ~2% of purchase
+
+  for (let y = 2023; y <= 2024; y++) {
+    for (let q = 1; q <= 4; q++) {
+      const idx = (y - 2023) * 4 + q;
+      const growth = 1 + idx * 0.006;
+      const noi = Math.round((annualNoi / 4) * growth);
+      const depreciation = Math.round(purchasePrice / 39 / 4);
+      const workingCapital = Math.round((Math.sin(idx * 1.3) * 0.01) * noi);
+      const netOps = noi + depreciation + workingCapital;
+
+      const capex = -Math.round(noi * 0.08 * (1 + Math.sin(idx * 0.7) * 0.3));
+      const ti = -Math.round(noi * 0.04 * (q === 1 ? 1.5 : 0.8));
+      const lc = -Math.round(noi * 0.02 * (q === 3 ? 1.4 : 0.7));
+      const netInvesting = capex + ti + lc;
+
+      const mortgagePrincipal = -Math.round(purchasePrice * 0.6 * 0.012 / 4);
+      const distributions = q === 4 ? -Math.round(noi * 0.6) : -Math.round(noi * 0.15);
+      const netFinancing = mortgagePrincipal + distributions;
+
+      const netCash = netOps + netInvesting + netFinancing;
+      const beginningBalance = cashBalance;
+      cashBalance += netCash;
+
+      entries.push({
+        period: `Q${q} ${y}`,
+        netOperatingIncome: noi,
+        adjustmentsNonCash: depreciation,
+        changesInWorkingCapital: workingCapital,
+        netCashFromOperations: netOps,
+        capitalExpenditures: capex,
+        tenantImprovements: ti,
+        leasingCommissions: lc,
+        netCashFromInvesting: netInvesting,
+        mortgagePrincipalPayment: mortgagePrincipal,
+        distributions,
+        netCashFromFinancing: netFinancing,
+        netCashFlow: netCash,
+        beginningCashBalance: beginningBalance,
+        endingCashBalance: cashBalance,
+      });
+    }
+  }
+  return entries;
+}
+
 export const assets: Asset[] = [
   {
     id: "asset_1",
@@ -112,6 +257,8 @@ export const assets: Asset[] = [
     capitalImprovements: 3200000,
     adjustedBasis: 45200000,
     timeline: generateTimeline(5, 42000000, 3200000, 1800000),
+    incomeStatement: generateIncomeStatement(3600000, 42000000, 0.94),
+    cashFlowStatement: generateCashFlowStatement(3600000, 42000000),
     leases: [
       { tenant: "Kirkland & Ellis LLP", leaseStart: "2020-01-01", leaseEnd: "2030-12-31", rent: 52, escalation: "3% annual", tiLcCosts: 850000 },
       { tenant: "Northern Trust Corp", leaseStart: "2019-06-01", leaseEnd: "2027-05-31", rent: 48, escalation: "2.5% annual", tiLcCosts: 620000 },
@@ -148,6 +295,8 @@ export const assets: Asset[] = [
     capitalImprovements: 1800000,
     adjustedBasis: 29800000,
     timeline: generateTimeline(4, 28000000, 2100000, 1200000),
+    incomeStatement: generateIncomeStatement(2400000, 28000000, 0.96),
+    cashFlowStatement: generateCashFlowStatement(2400000, 28000000),
     rentRoll: [
       { unit: "101", rent: 2850, leaseStatus: "Occupied", tenant: "Johnson, M." },
       { unit: "102", rent: 2700, leaseStatus: "Occupied", tenant: "Chen, L." },
@@ -198,6 +347,8 @@ export const assets: Asset[] = [
     capitalImprovements: 2400000,
     adjustedBasis: 37400000,
     timeline: generateTimeline(4, 35000000, 2500000, 1400000),
+    incomeStatement: generateIncomeStatement(2800000, 35000000, 0.82),
+    cashFlowStatement: generateCashFlowStatement(2800000, 35000000),
     hospitalityMetrics: {
       adr: 289,
       revpar: 237,
@@ -239,6 +390,8 @@ export const assets: Asset[] = [
     capitalImprovements: 1500000,
     adjustedBasis: 23500000,
     timeline: generateTimeline(5, 22000000, 1600000, 900000),
+    incomeStatement: generateIncomeStatement(1900000, 22000000, 0.91),
+    cashFlowStatement: generateCashFlowStatement(1900000, 22000000),
     leases: [
       { tenant: "Tempus Labs", leaseStart: "2019-01-01", leaseEnd: "2026-12-31", rent: 38, escalation: "3% annual", tiLcCosts: 420000 },
       { tenant: "Sprout Social", leaseStart: "2020-04-01", leaseEnd: "2028-03-31", rent: 41, escalation: "2.5% annual", tiLcCosts: 350000 },
@@ -273,6 +426,8 @@ export const assets: Asset[] = [
     capitalImprovements: 950000,
     adjustedBasis: 18950000,
     timeline: generateTimeline(3, 18000000, 1300000, 750000),
+    incomeStatement: generateIncomeStatement(1500000, 18000000, 0.93),
+    cashFlowStatement: generateCashFlowStatement(1500000, 18000000),
     rentRoll: [
       { unit: "1A", rent: 1850, leaseStatus: "Occupied", tenant: "Patel, R." },
       { unit: "1B", rent: 1900, leaseStatus: "Occupied", tenant: "Lee, S." },
