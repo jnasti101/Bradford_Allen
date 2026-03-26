@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { BarChart3, Building2, TrendingUp } from "lucide-react";
+import { BarChart3, TrendingUp } from "lucide-react";
 
 const links = [
   { href: "/", label: "Portfolio", icon: BarChart3 },
@@ -17,9 +18,13 @@ export function Nav() {
     <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
-            <Building2 className="h-4 w-4 text-white" />
-          </div>
+          <Image
+            src="/images/omnia-ikon.png"
+            alt="Omnia"
+            width={32}
+            height={32}
+            className="rounded-lg"
+          />
           <span className="text-lg font-semibold tracking-tight">Omnia</span>
         </Link>
 
