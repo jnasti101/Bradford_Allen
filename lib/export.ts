@@ -11,7 +11,7 @@ function downloadCSV(filename: string, csvContent: string) {
 }
 
 function formatNum(n: number): string {
-  return n.toLocaleString("en-US");
+  return n.toString();
 }
 
 function slugify(name: string): string {
