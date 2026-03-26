@@ -7,7 +7,7 @@ import { HistoricalChart } from "@/components/charts";
 import { portfolio } from "@/lib/data";
 
 export default function PerformancePage() {
-  const [timeRange, setTimeRange] = useState("5Y");
+  const [timeRange, setTimeRange] = useState("All");
 
   return (
     <>

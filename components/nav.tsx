@@ -25,7 +25,7 @@ export function Nav() {
             height={32}
             className="rounded-lg"
           />
-          <span className="text-lg font-semibold tracking-tight">Omnia</span>
+          <span className="text-lg font-semibold tracking-tight">Bradford Allen</span>
         </Link>
 
         <nav className="flex items-center gap-1">

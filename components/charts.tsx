@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   LineChart,
   Line,
@@ -16,6 +17,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { cn } from "@/lib/utils";
 import type { TimelineEntry } from "@/lib/data";
 import { formatCurrency } from "@/lib/data";
 
@@ -33,30 +35,67 @@ interface PerformanceChartProps {
   timeRange?: string;
 }
 
-export function PerformanceChart({ data, timeRange }: PerformanceChartProps) {
-  const filtered = filterByTimeRange(data, timeRange);
+const SERIES = [
+  { key: "portfolioValue" as const, label: "Portfolio Value", color: "#0891b2", gradientId: "colorValue" },
+  { key: "noi" as const, label: "NOI", color: "#6366f1", gradientId: "colorNoi" },
+  { key: "cashFlow" as const, label: "Cash Flow", color: "#10b981", gradientId: "colorCf" },
+];
+
+export function PerformanceChart({ data }: PerformanceChartProps) {
+  const [range, setRange] = useState("All");
+  const filtered = filterByRange(data, range);
+  const [visible, setVisible] = useState<Record<string, boolean>>({
+    portfolioValue: true,
+    noi: true,
+    cashFlow: true,
+  });
+
+  const toggle = (key: string) =>
+    setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold text-foreground">
-        Performance Over Time
-      </h3>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">
+          Performance Over Time
+        </h3>
+        <div className="flex items-center gap-3">
+          <TimeRangeButtons active={range} onChange={setRange} />
+          <div className="flex gap-1.5">
+          {SERIES.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => toggle(s.key)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
+                visible[s.key]
+                  ? "bg-white shadow-sm border"
+                  : "bg-muted text-muted-foreground opacity-60"
+              )}
+            >
+              <div
+                className="h-2 w-2 rounded-full transition-opacity"
+                style={{
+                  backgroundColor: s.color,
+                  opacity: visible[s.key] ? 1 : 0.3,
+                }}
+              />
+              {s.label}
+            </button>
+          ))}
+          </div>
+        </div>
+      </div>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={filtered}>
             <defs>
-              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#0891b2" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#0891b2" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="colorNoi" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="colorCf" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-              </linearGradient>
+              {SERIES.map((s) => (
+                <linearGradient key={s.gradientId} id={s.gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={s.color} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={s.color} stopOpacity={0} />
+                </linearGradient>
+              ))}
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis
@@ -70,6 +109,7 @@ export function PerformanceChart({ data, timeRange }: PerformanceChartProps) {
               tick={{ fontSize: 11, fill: "#64748b" }}
               tickLine={false}
               axisLine={false}
+              domain={["auto", "auto"]}
               tickFormatter={(v) => formatCurrency(v)}
             />
             <Tooltip
@@ -81,30 +121,19 @@ export function PerformanceChart({ data, timeRange }: PerformanceChartProps) {
               }}
               formatter={currencyFormatter}
             />
-            <Area
-              type="monotone"
-              dataKey="portfolioValue"
-              name="Portfolio Value"
-              stroke="#0891b2"
-              strokeWidth={2}
-              fill="url(#colorValue)"
-            />
-            <Area
-              type="monotone"
-              dataKey="noi"
-              name="NOI"
-              stroke="#6366f1"
-              strokeWidth={2}
-              fill="url(#colorNoi)"
-            />
-            <Area
-              type="monotone"
-              dataKey="cashFlow"
-              name="Cash Flow"
-              stroke="#10b981"
-              strokeWidth={2}
-              fill="url(#colorCf)"
-            />
+            {SERIES.map((s) =>
+              visible[s.key] ? (
+                <Area
+                  key={s.key}
+                  type="monotone"
+                  dataKey={s.key}
+                  name={s.label}
+                  stroke={s.color}
+                  strokeWidth={2}
+                  fill={`url(#${s.gradientId})`}
+                />
+              ) : null
+            )}
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -169,15 +198,60 @@ interface AssetPerformanceChartProps {
   data: TimelineEntry[];
 }
 
+const ASSET_SERIES = [
+  { key: "portfolioValue" as const, label: "Valuation", color: "#0891b2" },
+  { key: "noi" as const, label: "NOI", color: "#6366f1" },
+  { key: "cashFlow" as const, label: "Cash Flow", color: "#10b981" },
+];
+
 export function AssetPerformanceChart({ data }: AssetPerformanceChartProps) {
+  const [range, setRange] = useState("All");
+  const filtered = filterByRange(data, range);
+  const [visible, setVisible] = useState<Record<string, boolean>>({
+    portfolioValue: true,
+    noi: true,
+    cashFlow: true,
+  });
+
+  const toggle = (key: string) =>
+    setVisible((prev) => ({ ...prev, [key]: !prev[key] }));
+
   return (
     <div className="rounded-xl border bg-card p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-semibold text-foreground">
-        Asset Performance
-      </h3>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground">
+          Asset Performance
+        </h3>
+        <div className="flex items-center gap-3">
+          <TimeRangeButtons active={range} onChange={setRange} />
+          <div className="flex gap-1.5">
+          {ASSET_SERIES.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => toggle(s.key)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all",
+                visible[s.key]
+                  ? "bg-white shadow-sm border"
+                  : "bg-muted text-muted-foreground opacity-60"
+              )}
+            >
+              <div
+                className="h-2 w-2 rounded-full transition-opacity"
+                style={{
+                  backgroundColor: s.color,
+                  opacity: visible[s.key] ? 1 : 0.3,
+                }}
+              />
+              {s.label}
+            </button>
+          ))}
+          </div>
+        </div>
+      </div>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
+          <LineChart data={filtered}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
             <XAxis
               dataKey="date"
@@ -190,6 +264,7 @@ export function AssetPerformanceChart({ data }: AssetPerformanceChartProps) {
               tick={{ fontSize: 11, fill: "#64748b" }}
               tickLine={false}
               axisLine={false}
+              domain={["auto", "auto"]}
               tickFormatter={(v) => formatCurrency(v)}
             />
             <Tooltip
@@ -201,30 +276,19 @@ export function AssetPerformanceChart({ data }: AssetPerformanceChartProps) {
               }}
               formatter={currencyFormatter}
             />
-            <Line
-              type="monotone"
-              dataKey="noi"
-              name="NOI"
-              stroke="#6366f1"
-              strokeWidth={2}
-              dot={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="cashFlow"
-              name="Cash Flow"
-              stroke="#10b981"
-              strokeWidth={2}
-              dot={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="portfolioValue"
-              name="Valuation"
-              stroke="#0891b2"
-              strokeWidth={2}
-              dot={false}
-            />
+            {ASSET_SERIES.map((s) =>
+              visible[s.key] ? (
+                <Line
+                  key={s.key}
+                  type="monotone"
+                  dataKey={s.key}
+                  name={s.label}
+                  stroke={s.color}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ) : null
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -323,6 +387,7 @@ export function AvgRentChart({ data }: AvgRentChartProps) {
             <YAxis
               tick={{ fontSize: 11, fill: "#64748b" }}
               tickLine={false}
+              domain={["auto", "auto"]}
               tickFormatter={(v) => `$${v.toLocaleString()}`}
             />
             <Tooltip
@@ -372,6 +437,7 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
             <YAxis
               tick={{ fontSize: 11, fill: "#64748b" }}
               tickLine={false}
+              domain={["auto", "auto"]}
               tickFormatter={(v) => formatCurrency(v)}
             />
             <Tooltip
@@ -391,11 +457,39 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
   );
 }
 
-function filterByTimeRange(data: TimelineEntry[], range?: string): TimelineEntry[] {
+const TIME_RANGES = [
+  { label: "4Q", quarters: 4 },
+  { label: "8Q", quarters: 8 },
+  { label: "12Q", quarters: 12 },
+  { label: "All", quarters: 0 },
+];
+
+function filterByRange(data: TimelineEntry[], range?: string): TimelineEntry[] {
   if (!range || range === "All") return data;
-  const years = parseInt(range.replace("Y", ""));
-  const count = years * 4;
-  return data.slice(-count);
+  const match = TIME_RANGES.find((r) => r.label === range);
+  if (!match || match.quarters === 0) return data;
+  return data.slice(-match.quarters);
+}
+
+function TimeRangeButtons({ active, onChange }: { active: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex gap-0.5 rounded-lg bg-muted p-0.5">
+      {TIME_RANGES.map((r) => (
+        <button
+          key={r.label}
+          onClick={() => onChange(r.label)}
+          className={cn(
+            "rounded-md px-2 py-1 text-[11px] font-medium transition-all",
+            active === r.label
+              ? "bg-white text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {r.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 interface HistoricalChartProps {
@@ -404,7 +498,7 @@ interface HistoricalChartProps {
 }
 
 export function HistoricalChart({ data, timeRange }: HistoricalChartProps) {
-  const filtered = filterByTimeRange(data, timeRange);
+  const filtered = filterByRange(data, timeRange);
 
   return (
     <div className="space-y-6">
@@ -423,7 +517,7 @@ export function HistoricalChart({ data, timeRange }: HistoricalChartProps) {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} tickFormatter={(v) => formatCurrency(v)} />
+              <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} domain={["auto", "auto"]} tickFormatter={(v) => formatCurrency(v)} />
               <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} formatter={currencyFormatter} />
               <Area type="monotone" dataKey="portfolioValue" name="Portfolio Value" stroke="#0891b2" strokeWidth={2} fill="url(#histValue)" />
             </AreaChart>
@@ -441,7 +535,7 @@ export function HistoricalChart({ data, timeRange }: HistoricalChartProps) {
               <LineChart data={filtered}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+                <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} domain={["auto", "auto"]} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
                 <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} formatter={percentFormatter} />
                 <Line type="monotone" dataKey="irr" name="IRR" stroke="#6366f1" strokeWidth={2} dot={false} />
               </LineChart>
@@ -458,7 +552,7 @@ export function HistoricalChart({ data, timeRange }: HistoricalChartProps) {
               <BarChart data={filtered}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} tickFormatter={(v) => formatCurrency(v)} />
+                <YAxis tick={{ fontSize: 11, fill: "#64748b" }} tickLine={false} domain={["auto", "auto"]} tickFormatter={(v) => formatCurrency(v)} />
                 <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} formatter={currencyFormatter} />
                 <Bar dataKey="cashFlow" name="Cash Flow" fill="#10b981" radius={[4, 4, 0, 0]} />
               </BarChart>

@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 
-const ranges = ["1Y", "3Y", "5Y", "All"];
+const ranges = ["4Q", "8Q", "12Q", "All"];
 
 interface TimeRangeSelectorProps {
   active: string;
