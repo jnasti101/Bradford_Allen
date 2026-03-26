@@ -25,12 +25,12 @@ function getThirdTabLabel(type: Asset["type"]): string {
 }
 
 export function FinancialStatements({ asset }: FinancialStatementsProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("income");
+  const [activeTab, setActiveTab] = useState<Tab>("rentroll");
 
   const tabs: { key: Tab; label: string }[] = [
+    { key: "rentroll", label: getThirdTabLabel(asset.type) },
     { key: "income", label: "Income Statement" },
     { key: "cashflow", label: "Cash Flow" },
-    { key: "rentroll", label: getThirdTabLabel(asset.type) },
   ];
 
   const handleExport = () => {
